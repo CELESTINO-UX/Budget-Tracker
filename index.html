@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>BudgetWise Pro · Multi-User Budget Tracker with Admin Panel</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #eef2f7 0%, #e0e8f0 100%);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .app-container {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        /* Auth Modal */
+        .modal {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: white;
+            border-radius: 48px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .modal-content h2 { margin-bottom: 1.5rem; color: #1a3a4f; }
+        .modal-content input { width: 100%; margin-bottom: 1rem; padding: 12px; border-radius: 28px; border: 1px solid #cddfe7; }
+        .modal-content button { width: 100%; margin-top: 8px; }
+        .switch-auth { text-align: center; margin-top: 1rem; color: #1f5e8e; cursor: pointer; }
+        
+        /* header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.8rem;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 48px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+        .logo-area h1 { font-size: 1.8rem; background: linear-gradient(135deg, #1a3a4f, #0f5b7a); background-clip: text; -webkit-background-clip: text; color: transparent; }
+        .user-info { display: flex; gap: 15px; align-items: center; background: #eef2f7; padding: 5px 15px; border-radius: 40px; }
+        .logout-btn { background: #c23b22; color: white; border: none; padding: 6px 12px; border-radius: 30px; cursor: pointer; }
+        .admin-badge { background: #e67e22; color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; margin-left: 8px; }
+        
+        /* stats row */
+        .stats-row { display: flex; flex-wrap: wrap; gap: 1.2rem; margin-bottom: 2rem; }
+        .stat-card { background: white; flex: 1; min-width: 160px; border-radius: 28px; padding: 1.2rem; box-shadow: 0 6px 14px rgba(0,0,0,0.05); }
+        .stat-number { font-size: 1.8rem; font-weight: 800; color: #1f3a4b; }
+        .chart-section { background: white; border-radius: 32px; padding: 1.2rem; margin-bottom: 2rem; }
+        canvas { max-height: 260px; }
+        .action-panel { display: flex; flex-wrap: wrap; gap: 1.8rem; margin-bottom: 2rem; }
+        .add-transaction, .transactions-list, .subscription-panel { background: white; border-radius: 32px; padding: 1.5rem; box-shadow: 0 8px 18px rgba(0,0,0,0.05); }
+        .add-transaction { flex: 1.2; }
+        .transactions-list { flex: 1.8; }
+        .subscription-panel { flex: 1.2; background: linear-gradient(125deg, #fff9ef, #fff5e6); border: 1px solid #ffe0b5; }
+        .form-group { margin-bottom: 1rem; display: flex; flex-direction: column; }
+        input, select { padding: 10px 14px; border-radius: 28px; border: 1px solid #cddfe7; }
+        .btn-primary { background: #1f5e8e; color: white; border: none; padding: 10px; border-radius: 40px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn-primary:hover { background: #0f4468; }
+        .transaction-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eef2f7; padding: 10px 0; }
+        .alert-banner { background: #fff3e0; border-left: 6px solid #f39c12; padding: 0.7rem 1rem; border-radius: 24px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .toast-msg { position: fixed; bottom: 20px; right: 20px; background: #1e2f41; color: white; padding: 12px 24px; border-radius: 60px; z-index: 2000; font-weight: 500; }
+        .ai-assistant { background: #eef3fc; border-radius: 28px; padding: 1rem; margin-top: 1rem; border: 1px solid #cde3f0; }
+        .ai-input-group { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .payment-methods { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; justify-content: center; }
+        .payment-btn { background: #2c3e50; color: white; border: none; border-radius: 40px; padding: 8px 14px; font-size: 0.75rem; cursor: pointer; }
+        .hidden-number { background: #2c3e5033; padding: 6px 12px; border-radius: 40px; font-family: monospace; filter: blur(3px); cursor: pointer; transition: 0.2s; }
+        .hidden-number:hover { filter: blur(0); background: #f4a261; }
+        .income-amount { color: #2a7f49; }
+        .expense-amount { color: #c23b22; }
+        
+        /* Admin Panel (hidden) */
+        .admin-panel {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 20000;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+        .admin-container {
+            background: #1e2f41;
+            border-radius: 32px;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            color: white;
+        }
+        .admin-container table { width: 100%; border-collapse: collapse; background: #2c3e50; border-radius: 20px; overflow: hidden; }
+        .admin-container th, .admin-container td { padding: 12px; text-align: left; border-bottom: 1px solid #4a627a; }
+        .close-admin { background: #c23b22; color: white; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; margin-bottom: 1rem; }
+        @media (max-width: 800px) { .action-panel { flex-direction: column; } }
+    </style>
+</head>
+<body>
+
+<div id="authModal" class="modal">
+    <div class="modal-content">
+        <h2 id="authTitle">🔐 Sign Up</h2>
+        <input type="email" id="authEmail" placeholder="Email address" autocomplete="email">
+        <input type="password" id="authPassword" placeholder="Password (min 4 chars)">
+        <button id="authSubmitBtn" class="btn-primary">Create Account</button>
+        <div class="switch-auth" id="switchAuthMode">Already have an account? <strong>Login</strong></div>
+    </div>
+</div>
+
+<div class="app-container" id="mainApp" style="display: none;">
+    <div class="header">
+        <div class="logo-area"><h1><i class="fas fa-chart-line"></i> BudgetWise · Global Tracker</h1></div>
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <select id="globalCurrency" class="currency-selector" style="background:white; padding:6px 12px; border-radius:40px;">
+                <option value="USD">USD $</option><option value="EUR">€ Euro</option><option value="GBP">£ Pound</option>
+                <option value="KES">KSh Kenyan Shilling</option><option value="JPY">¥ Yen</option><option value="INR">₹ Rupee</option>
+                <option value="CAD">C$ Dollar</option><option value="AUD">A$ Dollar</option>
+            </select>
+            <div class="user-info">
+                <i class="fas fa-user-circle"></i> <span id="currentUserEmail"></span>
+                <button id="logoutBtn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </div>
+    </div>
+    <div id="alertBanner" class="alert-banner" style="display: none;"><i class="fas fa-bell"></i> <span id="alertMessage"></span></div>
+    <div class="stats-row">
+        <div class="stat-card"><h3>💰 Total Income</h3><div class="stat-number" id="totalIncomeDisplay">$0</div></div>
+        <div class="stat-card"><h3>🛒 Spending</h3><div class="stat-number" id="totalExpenseDisplay">$0</div></div>
+        <div class="stat-card"><h3>🐷 Savings</h3><div class="stat-number" id="savingsDisplay">$0</div></div>
+        <div class="stat-card"><h3>⚖️ Balance</h3><div class="stat-number" id="balanceDisplay">$0</div></div>
+    </div>
+    <div class="chart-section"><div class="chart-title">📊 Spending by Category</div><canvas id="expenseChart"></canvas></div>
+    <div class="action-panel">
+        <div class="add-transaction">
+            <h3><i class="fas fa-plus-circle"></i> Add Transaction</h3>
+            <div class="form-group"><label>Description</label><input type="text" id="descInput" placeholder="Groceries, salary..."></div>
+            <div class="form-group"><label>Amount</label><input type="number" id="amountInput" step="0.01" placeholder="0.00"></div>
+            <div class="form-group"><label>Type</label><select id="typeSelect"><option value="expense">💸 Expense</option><option value="income">💰 Income</option></select></div>
+            <div class="form-group"><label>Category</label><select id="categorySelect"><option value="Food">🍔 Food</option><option value="Transport">🚗 Transport</option><option value="Shopping">🛍️ Shopping</option><option value="Bills">⚡ Bills</option><option value="Entertainment">🎬 Entertainment</option><option value="Salary">💼 Salary</option></select></div>
+            <button id="addTransactionBtn" class="btn-primary"><i class="fas fa-save"></i> Add Entry</button>
+            <div class="ai-assistant">
+                <i class="fas fa-robot"></i> <strong>AI Assistant</strong>
+                <div class="ai-input-group"><input type="text" id="aiCommand" placeholder="How to spend $500? Invest $1000? Add coffee $4"><button id="processAiBtn" class="btn-primary" style="background:#2c6e9e; width:auto;">✨ Ask</button></div>
+                <div id="aiFeedback" style="font-size:12px; margin-top:8px;"></div>
+            </div>
+        </div>
+        <div class="transactions-list">
+            <h3><i class="fas fa-history"></i> Recent Transactions</h3>
+            <div id="transactionContainer" style="max-height: 320px; overflow-y: auto;"></div>
+        </div>
+        <div class="subscription-panel">
+            <h3><i class="fas fa-gem"></i> Premium Plans</h3>
+            <div id="planOptions" style="display:flex; flex-wrap:wrap; gap:10px; margin:12px 0;">
+                <button class="payment-btn" data-months="1">📆 $2 / month</button>
+                <button class="payment-btn" data-months="3">💰 $5 / 3 months</button>
+                <button class="payment-btn" data-months="6">🔥 $10 / 6 months</button>
+                <button class="payment-btn" data-months="12">🏆 $21 / 12 months</button>
+            </div>
+            <hr>
+            <div style="text-align:center;"><strong>📞 Payment (tap to reveal)</strong><br>
+                <div id="paymentNumberHidden" class="hidden-number">•••••••••••••••</div>
+            </div>
+            <div class="payment-methods">
+                <span class="payment-btn">M-Pesa</span><span class="payment-btn">Bank Transfer</span><span class="payment-btn">PayPal</span><span class="payment-btn">Crypto</span>
+            </div>
+            <button id="confirmPaymentBtn" class="btn-primary btn-premium" style="background:#e67e22;">✅ I Made Payment (Auto-Upgrade)</button>
+            <p id="premiumExpiryInfo" style="font-size:11px; margin-top:8px;"></p>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN PANEL (hidden) -->
+<div id="adminPanel" class="admin-panel">
+    <div class="admin-container">
+        <button id="closeAdminBtn" class="close-admin"><i class="fas fa-times"></i> Close Admin Panel</button>
+        <h2><i class="fas fa-user-secret"></i> Admin Dashboard - User Activities</h2>
+        <div id="adminUsersList"></div>
+    </div>
+</div>
+
+<script>
+    // ---------- DATABASE (localStorage simulation) ----------
+    let users = {}; // { email: { password, isAdmin, premiumExpiry, transactions, activities, currency, lastLogin } }
+    let currentUser = null;
+    let activeCurrency = "USD";
+    let chartInstance = null;
+    const exchangeRates = { USD:1, EUR:0.92, GBP:0.79, KES:130.5, JPY:150.2, INR:83.5, CAD:1.38, AUD:1.52 };
+    
+    // Initialize default admin (admin@budgetwise.com / admin123)
+    function initDB() {
+        const stored = localStorage.getItem("budgetwise_users_v3");
+        if(stored) {
+            users = JSON.parse(stored);
+        } else {
+            users = {};
+            // Create admin account
+            users["admin@budgetwise.com"] = {
+                password: btoa("admin123"),
+                isAdmin: true,
+                premiumExpiry: Date.now() + 365*24*3600*1000,
+                transactions: [],
+                activities: [],
+                currency: "USD"
+            };
+        }
+        saveDB();
+    }
+    function saveDB() { localStorage.setItem("budgetwise_users_v3", JSON.stringify(users)); }
+    
+    function logActivity(email, action, details) {
+        if(users[email]) {
+            if(!users[email].activities) users[email].activities = [];
+            users[email].activities.unshift({ timestamp: Date.now(), action, details });
+            if(users[email].activities.length > 100) users[email].activities.pop();
+            saveDB();
+        }
+    }
+    
+    // Auth functions
+    function hashPass(pwd) { return btoa(pwd); }
+    function verifyPass(pwd, hash) { return btoa(pwd) === hash; }
+    
+    function register(email, password) {
+        email = email.toLowerCase().trim();
+        if(!email || !password || password.length < 4) return { success: false, msg: "Valid email & password (min 4 chars)" };
+        if(users[email]) return { success: false, msg: "Email already registered" };
+        users[email] = {
+            password: hashPass(password),
+            isAdmin: false,
+            premiumExpiry: null,
+            transactions: [],
+            activities: [],
+            currency: "USD"
+        };
+        saveDB();
+        logActivity(email, "Registered", "Account created");
+        return { success: true, msg: "Account created! Please login." };
+    }
+    
+    function login(email, password) {
+        email = email.toLowerCase().trim();
+        const user = users[email];
+        if(!user) return { success: false, msg: "User not found" };
+        if(!verifyPass(password, user.password)) return { success: false, msg: "Wrong password" };
+        currentUser = email;
+        if(!user.currency) user.currency = "USD";
+        activeCurrency = user.currency;
+        document.getElementById('globalCurrency').value = activeCurrency;
+        logActivity(email, "Login", "User logged in");
+        return { success: true, msg: "Login successful", isAdmin: user.isAdmin || false };
+    }
+    
+    function logout() { currentUser = null; document.getElementById('mainApp').style.display = 'none'; document.getElementById('authModal').style.display = 'flex'; }
+    
+    // User data helpers
+    function getUserData() {
+        if(!currentUser || !users[currentUser]) return null;
+        return users[currentUser];
+    }
+    
+    function saveUserTransactions(transactions) {
+        if(users[currentUser]) { users[currentUser].transactions = transactions; saveDB(); }
+    }
+    function getUserTransactions() { return users[currentUser]?.transactions || []; }
+    function setUserPremium(expiryMs) { if(users[currentUser]) { users[currentUser].premiumExpiry = expiryMs; saveDB(); logActivity(currentUser, "Premium Upgrade", `Expires ${new Date(expiryMs).toISOString()}`); } }
+    function isUserPremium() { const u = users[currentUser]; return u && u.premiumExpiry && u.premiumExpiry > Date.now(); }
+    function setUserCurrency(curr) { if(users[currentUser]) { users[currentUser].currency = curr; saveDB(); } }
+    
+    // Currency conversion
+    function convertToUSD(amount, fromCurrency) { return amount / (exchangeRates[fromCurrency] || 1); }
+    function convertFromUSD(usdAmount, toCurrency) { return usdAmount * (exchangeRates[toCurrency] || 1); }
+    function formatCurrency(amount) { const sym = getCurrencySymbol(activeCurrency); return `${sym} ${amount.toFixed(2)}`; }
+    function getCurrencySymbol(curr) { const map = { USD:'$', EUR:'€', GBP:'£', KES:'KSh', JPY:'¥', INR:'₹', CAD:'C$', AUD:'A$' }; return map[curr] || curr; }
+    
+    function updateUI() {
+        const txns = getUserTransactions();
+        let totalIncomeUSD = 0, totalExpenseUSD = 0;
+        txns.forEach(t => { if(t.type === 'income') totalIncomeUSD += t.amountUSD; else totalExpenseUSD += t.amountUSD; });
+        const rate = exchangeRates[activeCurrency] || 1;
+        document.getElementById('totalIncomeDisplay').innerHTML = formatCurrency(totalIncomeUSD * rate);
+        document.getElementById('totalExpenseDisplay').innerHTML = formatCurrency(totalExpenseUSD * rate);
+        document.getElementById('savingsDisplay').innerHTML = formatCurrency((totalIncomeUSD - totalExpenseUSD) * rate);
+        document.getElementById('balanceDisplay').innerHTML = formatCurrency((totalIncomeUSD - totalExpenseUSD) * rate);
+        renderTransactionList();
+        renderChart(txns);
+        checkSpendingAlerts(totalExpenseUSD, rate);
+        const isPrem = isUserPremium();
+        if(isPrem && users[currentUser]?.premiumExpiry) document.getElementById('premiumExpiryInfo').innerHTML = `✅ Premium until ${new Date(users[currentUser].premiumExpiry).toLocaleDateString()}`;
+        else document.getElementById('premiumExpiryInfo').innerHTML = 'Free plan - upgrade for bank sync';
+    }
+    
+    function renderTransactionList() {
+        const txns = getUserTransactions();
+        const container = document.getElementById('transactionContainer');
+        if(!txns.length) { container.innerHTML = '<div style="text-align:center; color:#8aa0b5;">No transactions yet</div>'; return; }
+        const rate = exchangeRates[activeCurrency] || 1;
+        container.innerHTML = [...txns].reverse().map(tx => {
+            const displayAmount = tx.amountUSD * rate;
+            const sign = tx.type === 'income' ? '+' : '-';
+            const colorClass = tx.type === 'income' ? 'income-amount' : 'expense-amount';
+            return `<div class="transaction-item"><div><strong>${escapeHtml(tx.description)}</strong><br><span style="font-size:11px;">${tx.category} · ${new Date(tx.date).toLocaleDateString()}</span></div><div><span style="font-weight:bold; ${colorClass}">${sign} ${formatCurrency(displayAmount)}</span><button class="delete-tx" data-id="${tx.id}" style="margin-left:12px; background:none; border:none; color:#c23b22; cursor:pointer;"><i class="fas fa-trash"></i></button></div></div>`;
+        }).join('');
+        document.querySelectorAll('.delete-tx').forEach(btn => { btn.addEventListener('click', (e) => { const id = parseInt(btn.getAttribute('data-id')); deleteTransaction(id); }); });
+    }
+    
+    function deleteTransaction(id) {
+        let txns = getUserTransactions();
+        txns = txns.filter(t => t.id !== id);
+        saveUserTransactions(txns);
+        logActivity(currentUser, "Delete Transaction", `Deleted ID ${id}`);
+        updateUI();
+        showToast("Transaction removed");
+    }
+    
+    function addTransaction(desc, amountLocal, type, category, currencyOverride=null) {
+        if(!desc.trim()){ showToast("Description needed"); return false; }
+        if(isNaN(amountLocal) || amountLocal<=0){ showToast("Valid amount >0"); return false; }
+        const usedCurrency = currencyOverride || activeCurrency;
+        const rate = exchangeRates[usedCurrency] || 1;
+        const amountUSD = amountLocal / rate;
+        const newTx = { id: Date.now(), description: desc.trim(), amountUSD, type, category, date: new Date().toISOString() };
+        let txns = getUserTransactions();
+        txns.push(newTx);
+        saveUserTransactions(txns);
+        logActivity(currentUser, "Add Transaction", `${type} ${desc} ${amountLocal} ${usedCurrency}`);
+        updateUI();
+        showToast(`${type==='income'?'Income':'Expense'} added: ${formatCurrency(amountLocal)}`);
+        return true;
+    }
+    
+    function renderChart(txns) {
+        const catMap = new Map();
+        txns.forEach(t => { if(t.type === 'expense') catMap.set(t.category, (catMap.get(t.category)||0) + t.amountUSD); });
+        const labels = Array.from(catMap.keys()), data = Array.from(catMap.values());
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+        if(!labels.length) chartInstance = new Chart(ctx, { type:'doughnut', data:{ labels:['No expenses'], datasets:[{data:[1],backgroundColor:['#ddd']}] } });
+        else chartInstance = new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{data, backgroundColor:['#2c6e9e','#e9b35f','#4b8b6e','#b56576','#6d597a','#e56b6f']}] }, options:{ responsive:true } });
+    }
+    
+    function checkSpendingAlerts(totalExpenseUSD, rate) {
+        const expenseLocal = totalExpenseUSD * rate;
+        const alertDiv = document.getElementById('alertBanner');
+        const msgSpan = document.getElementById('alertMessage');
+        if(totalExpenseUSD > 300) { msgSpan.innerText = `⚠️ High spending: ${formatCurrency(expenseLocal)}`; alertDiv.style.display='flex'; }
+        else if(totalExpenseUSD > 150) { msgSpan.innerText = `📊 Spending: ${formatCurrency(expenseLocal)}`; alertDiv.style.display='flex'; }
+        else alertDiv.style.display='none';
+    }
+    
+    function showToast(msg, bg="#1e2f41"){ let t = document.querySelector('.toast-msg'); if(t) t.remove(); const toast = document.createElement('div'); toast.className='toast-msg'; toast.style.backgroundColor=bg; toast.innerHTML=`<i class="fas fa-info-circle"></i> ${msg}`; document.body.appendChild(toast); setTimeout(()=>toast.remove(),3000); }
+    
+    // AI Function
+    function processAICommand(raw) {
+        const text = raw.toLowerCase();
+        let feedback = "";
+        const addMatch = text.match(/add\s+(\w+[\s\w]*?)\s+(\d+(?:\.\d+)?)\s*(?:(\w+))?\s*(?:as\s+(\w+))?/i);
+        if(addMatch) {
+            let desc = addMatch[1].trim();
+            let amountVal = parseFloat(addMatch[2]);
+            let currencyCode = addMatch[3] ? addMatch[3].toUpperCase() : activeCurrency;
+            let categoryGuess = addMatch[4] ? addMatch[4].charAt(0).toUpperCase()+addMatch[4].slice(1) : "Other";
+            if(addTransaction(desc, amountVal, "expense", categoryGuess, currencyCode)) feedback = `✅ Added ${desc}`;
+            else feedback = "❌ Failed";
+        }
+        else if(text.includes("how to spend") || (text.match(/\d+/) && text.includes("spend"))) {
+            const amt = text.match(/(\d+(?:\.\d+)?)/);
+            let amount = amt ? parseFloat(amt[1]) : 500;
+            feedback = `💡 Smart spending for ${formatCurrency(amount)}: 50% Needs, 30% Wants, 20% Savings. Use budget alerts!`;
+        }
+        else if(text.includes("invest")) {
+            const amt = text.match(/(\d+(?:\.\d+)?)/);
+            let capital = amt ? parseFloat(amt[1]) : 1000;
+            feedback = `📈 Investment: Diversify ${formatCurrency(capital)} → 40% ETFs, 30% bonds, 20% REITs, 10% crypto. Consider dollar-cost averaging.`;
+        }
+        else { feedback = `🤖 Ask: "How to spend $500", "Invest $2000", "Add lunch $15 as Food"`; }
+        document.getElementById('aiFeedback').innerHTML = `<i class="fas fa-robot"></i> ${feedback}`;
+        setTimeout(()=> { if(document.getElementById('aiFeedback').innerHTML.includes(feedback)) document.getElementById('aiFeedback').innerHTML = ""; }, 8000);
+    }
+    
+    // Premium payment auto-upgrade
+    function activatePremium(months) {
+        const durationMs = months * 30 * 24 * 3600 * 1000;
+        let currentExpiry = users[currentUser]?.premiumExpiry || 0;
+        let newExpiry = (currentExpiry > Date.now()) ? currentExpiry + durationMs : Date.now() + durationMs;
+        setUserPremium(newExpiry);
+        showToast(`🎉 Premium activated for ${months} months!`, "#2a7f49");
+        updateUI();
+    }
+    
+    // Admin Panel: show all users activities
+    function renderAdminPanel() {
+        const container = document.getElementById('adminUsersList');
+        let html = `<table><thead><tr><th>Email</th><th>Admin</th><th>Premium Expiry</th><th>Transactions Count</th><th>Recent Activities</th></tr></thead><tbody>`;
+        for(let email in users) {
+            const u = users[email];
+            const txnCount = u.transactions?.length || 0;
+            const lastActs = u.activities?.slice(0,3).map(a => `${new Date(a.timestamp).toLocaleString()}: ${a.action}`).join('<br>') || '-';
+            html += `<tr><td>${email}</td><td>${u.isAdmin ? 'Yes' : 'No'}</td><td>${u.premiumExpiry ? new Date(u.premiumExpiry).toLocaleDateString() : 'Free'}</td><td>${txnCount}</td><td>${lastActs}</td></tr>`;
+        }
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+    
+    // Event Listeners & Init
+    document.addEventListener('DOMContentLoaded', () => {
+        initDB();
+        // Auth Modal handlers
+        let isLoginMode = false;
+        const authTitle = document.getElementById('authTitle');
+        const authSubmit = document.getElementById('authSubmitBtn');
+        const switchMode = document.getElementById('switchAuthMode');
+        
+        function refreshAuthUI() {
+            if(isLoginMode) { authTitle.innerText = "🔐 Login"; authSubmit.innerText = "Login"; switchMode.innerHTML = "No account? <strong>Sign Up</strong>"; }
+            else { authTitle.innerText = "📝 Sign Up"; authSubmit.innerText = "Create Account"; switchMode.innerHTML = "Already have account? <strong>Login</strong>"; }
+        }
+        switchMode.onclick = () => { isLoginMode = !isLoginMode; refreshAuthUI(); };
+        refreshAuthUI();
+        
+        authSubmit.onclick = () => {
+            const email = document.getElementById('authEmail').value;
+            const pwd = document.getElementById('authPassword').value;
+            if(isLoginMode) {
+                const res = login(email, pwd);
+                if(res.success) {
+                    document.getElementById('authModal').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                    document.getElementById('currentUserEmail').innerText = email;
+                    if(res.isAdmin) document.getElementById('currentUserEmail').innerHTML += '<span class="admin-badge">👑 ADMIN</span>';
+                    activeCurrency = users[currentUser]?.currency || "USD";
+                    document.getElementById('globalCurrency').value = activeCurrency;
+                    updateUI();
+                    // if admin, add secret admin panel trigger (double click on logo)
+                    if(res.isAdmin) {
+                        const logo = document.querySelector('.logo-area h1');
+                        logo.style.cursor = "pointer";
+                        logo.ondblclick = () => { renderAdminPanel(); document.getElementById('adminPanel').style.display = 'flex'; };
+                        showToast("Admin: Double-click logo to open Admin Panel", "#e67e22");
+                    }
+                } else showToast(res.msg, "#c23b22");
+            } else {
+                const res = register(email, pwd);
+                showToast(res.msg, res.success ? "#2a7f49" : "#c23b22");
+                if(res.success) { isLoginMode = true; refreshAuthUI(); document.getElementById('authEmail').value = email; }
+            }
+        };
+        
+        document.getElementById('logoutBtn')?.addEventListener('click', logout);
+        document.getElementById('addTransactionBtn')?.addEventListener('click', () => {
+            addTransaction(document.getElementById('descInput').value, parseFloat(document.getElementById('amountInput').value), document.getElementById('typeSelect').value, document.getElementById('categorySelect').value);
+            document.getElementById('descInput').value = ''; document.getElementById('amountInput').value = '';
+        });
+        document.getElementById('processAiBtn')?.addEventListener('click', () => processAICommand(document.getElementById('aiCommand').value));
+        document.getElementById('globalCurrency')?.addEventListener('change', (e) => { activeCurrency = e.target.value; setUserCurrency(activeCurrency); updateUI(); });
+        
+        // Payment
+        const hiddenDiv = document.getElementById('paymentNumberHidden');
+        hiddenDiv?.addEventListener('click', () => { if(hiddenDiv.innerText === "•••••••••••••••") hiddenDiv.innerText = "+254714019736"; else hiddenDiv.innerText = "•••••••••••••••"; });
+        document.querySelectorAll('#planOptions .payment-btn').forEach(btn => {
+            btn.addEventListener('click', () => { window._selectedMonths = parseInt(btn.getAttribute('data-months')); showToast(`Selected ${window._selectedMonths} month(s). Complete payment then confirm.`, "#e67e22"); if(hiddenDiv.innerText !== "+254714019736") hiddenDiv.innerText = "+254714019736"; });
+        });
+        document.getElementById('confirmPaymentBtn')?.addEventListener('click', () => { if(window._selectedMonths) { activatePremium(window._selectedMonths); window._selectedMonths = null; } else showToast("Select a plan first", "#c23b22"); });
+        document.getElementById('closeAdminBtn')?.addEventListener('click', () => { document.getElementById('adminPanel').style.display = 'none'; });
+    });
+    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+</script>
+</body>
+</html>
